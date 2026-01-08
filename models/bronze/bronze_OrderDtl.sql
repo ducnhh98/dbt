@@ -1,8 +1,7 @@
 {{ config(
-    engine='MergeTree()',
-    materialized='table',
+    engine='ReplacingMergeTree(from_raw)', 
+    materialized='incremental',
     unique_key='(OrderDtl_Company, OrderDtl_OrderNum, OrderDtl_OrderLine)',
-    incremental_strategy='delete+insert', 
     order_by='(OrderDtl_Company, OrderDtl_OrderNum, OrderDtl_OrderLine)',
     on_schema_change='append_new_columns' 
 ) }}
@@ -15,18 +14,15 @@ WITH source_data AS (
         toString(OrderDtl_Company) AS OrderDtl_Company,
         toUInt32(OrderDtl_OrderNum) AS OrderDtl_OrderNum,
         toUInt32(OrderDtl_OrderLine) AS OrderDtl_OrderLine,
-
         toFloat64(OrderDtl_DocUnitPrice) AS OrderDtl_DocUnitPrice,
         toString(OrderDtl_SalesUM) AS OrderDtl_SalesUM,
         toString(OrderDtl_PricePerCode) AS OrderDtl_PricePerCode,
         toFloat64(OrderDtl_DiscountPercent) AS OrderDtl_DiscountPercent,
-
         toString(OrderDtl_PartNum) AS OrderDtl_PartNum,
         toString(OrderDtl_XPartNum) AS OrderDtl_XPartNum, 
         toString(OrderDtl_ProdCode) AS OrderDtl_ProdCode,
         toString(OrderDtl_TaxCatID) AS OrderDtl_TaxCatID,
         toString(OrderDtl_PriceListCode) AS OrderDtl_PriceListCode,
-
         toUInt8(OrderDtl_VoidLine) AS OrderDtl_VoidLine, 
         toBool(OrderDtl_OpenLine) AS OrderDtl_OpenLine,
         OrderDtl_ChangeDate,

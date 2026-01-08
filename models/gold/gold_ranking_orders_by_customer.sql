@@ -11,7 +11,7 @@ WITH source AS (
         a.CustNum,
         b.CustID
     FROM {{ ref('silver_fact_sales_orders') }} a
-    INNER JOIN {{ ref('bronze_Customer') }} b 
+    INNER JOIN {{ ref('silver_dim_customer') }} b 
         ON a.CustNum = b.CustNum
 )
 

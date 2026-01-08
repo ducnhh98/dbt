@@ -1,49 +1,26 @@
 {{ config(
-    materialized='table',
-    engine='MergeTree()',
-    order_by='(Company, CustNum)'
+    materialized='incremental',
+    engine='MergeTree()'
 ) }}
 
 {% set time_update = "toTimeZone(now(), 'Asia/Ho_Chi_Minh')" %}
 
 WITH source AS (
     SELECT
-        toString(data.Company)            AS Company,
-        toString(data.CustID)             AS CustID,
-        toUInt32(data.CustNum)      AS CustNum,
-        toString(data.Name)               AS Name,
-
-        toString(data.City)               AS City,
-        toString(data.State)              AS State,
-        toString(data.Zip)                AS Zip,
-        toString(data.Country)            AS Country,
-        toUInt16(data.CountryNum)   AS CountryNum,
-      
-        toString(data.ResaleID)           AS ResaleID,
-        toString(data.TerritoryID)        AS TerritoryID,
-        toString(data.TerritoryTerritoryDesc)
-                                           AS TerritoryTerritoryDesc,
-        toString(data.CustGrupGroupDesc)  AS CustGrupGroupDesc,
-        toString(data.GroupCode)          AS GroupCode,
-        toString(data.TermsCode)          AS TermsCode,
-        toString(data.CustomerType)       AS CustomerType,
-      
-        toBool(data.CreditHold)     AS CreditHold,
-        toBool(data.NoContact)      AS NoContact,
-        toBool(data.AllowShipTo3)   AS AllowShipTo3,
-        toBool(data.HasBank)        AS HasBank,
-     
-        toString(data.ShipToNum)          AS ShipToNum,
-        toString(data.CustPartOpts)       AS CustPartOpts,
-        toString(data.PhoneNum)           AS PhoneNum,
-   
-        toUUID(data.SysRowID)       AS SysRowID,
-        toString(data.RowMod)             AS RowMod,
-        
+        (data.Customer_Company) AS Customer_Company,
+        (data.Customer_CustNum) AS Customer_CustNum,
+        (data.Customer_CustID) AS Customer_CustID,
+        (data.Customer_Name) AS Customer_Name,
+        (data.Customer_CustomerType) AS Customer_CustomerType,
+        (data.Customer_GroupCode) AS Customer_GroupCode,
+        (data.Customer_TerritoryID) AS Customer_TerritoryID,
+        toDate(data.Customer_ChangeDate) AS Customer_ChangeDate,
+        toUInt32(data.Customer_ChangeTime) AS Customer_ChangeTime,
+        toUUID(data.RowIdent) AS RowIdent,
         {{time_update}} AS from_epicor
 
     FROM url(
-            'https://portal.3ssoft.com.vn/srv17kineticedu/api/v2/odata/EPIC06/Erp.BO.CustomerSvc/List',
+            'https://portal.3ssoft.com.vn/SRV17KineticEdu/api/v2/odata/EPIC06/BaqSvc/E3S_Customer/Data',
             'JSON',
             'value Array(JSON)',
             headers(
@@ -52,6 +29,28 @@ WITH source AS (
             )
         )
     ARRAY JOIN value AS data
+    {% if is_incremental() %}
+    WHERE
+    (
+        Customer_ChangeDate >
+        (SELECT max(Customer_ChangeDate) FROM {{ this }})
+    )
+    OR
+    (
+        Customer_ChangeDate =
+        (SELECT max(Customer_ChangeDate) FROM {{ this }})
+        AND
+        Customer_ChangeTime >
+        (
+            SELECT max(Customer_ChangeTime)
+            FROM {{ this }}
+            WHERE Customer_ChangeDate =
+                  (SELECT max(Customer_ChangeDate) FROM {{ this }})
+        )
+    )
+    {% endif %}
 )
-SELECT *
-FROM source
+SELECT 
+    *
+FROM 
+    source

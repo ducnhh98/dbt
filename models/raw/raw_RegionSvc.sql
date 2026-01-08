@@ -1,20 +1,20 @@
 {{ config(
-    materialized='table',
-    engine='MergeTree()',
-    order_by='(Company, RegionCode)'
+    engine='ReplacingMergeTree(from_epicor)', 
+    materialized='incremental',
+    unique_key='SysRowID',
+    order_by='SysRowID',
+    on_schema_change='append_new_columns' 
 ) }}
+
 
 {% set time_update = "toTimeZone(now(), 'Asia/Ho_Chi_Minh')" %}
 
 WITH source AS (
     SELECT
-        toString(data.Company) AS Company,
-        toString(data.RegionCode) AS RegionCode,
-        toString(data.Description) AS Description,
-
+        (data.Company) AS Company,
+        (data.RegionCode) AS RegionCode,
+        (data.Description) AS Description,
         toUUID(data.SysRowID) AS SysRowID,
-        toString(data.RowMod) AS RowMod,
-
         {{time_update}} AS from_epicor
     FROM url(
             'https://portal.3ssoft.com.vn/srv17kineticedu/api/v2/odata/EPIC06/Erp.BO.RegionSvc/List',
